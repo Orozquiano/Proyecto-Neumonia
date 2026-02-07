@@ -12,6 +12,8 @@ import pyautogui
 import tkcap
 import img2pdf
 import numpy as np
+import tensorflow as tf
+import pydicom as dicom
 import time
 tf.compat.v1.disable_eager_execution()
 tf.compat.v1.experimental.output_all_intermediates(True)
@@ -87,7 +89,6 @@ def read_jpg_file(path):
     img2 = np.uint8(img2)
     return img2, img2show
 
-
 def preprocess(array):
     array = cv2.resize(array, (512, 512))
     array = cv2.cvtColor(array, cv2.COLOR_BGR2GRAY)
@@ -97,6 +98,11 @@ def preprocess(array):
     array = np.expand_dims(array, axis=-1)
     array = np.expand_dims(array, axis=0)
     return array
+
+
+def model_fun():
+    model = tf.keras.models.load_model("model/conv_MLP_84.h5")
+    return model
 
 
 class App:
@@ -249,3 +255,13 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+#ERRORES:
+# - Agregar el modelo y reestructuración de los archivos del proyecto
+# - Agrega la función faltante que contiene el modelo model_fun()
+# - Agregar las siguiente importaciones:
+#    import tensorflow as tf
+#    from tensorflow.keras import backend as K
+#    import pydicom as dicom
