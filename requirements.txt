@@ -1,10 +1,11 @@
+tensorflow==2.15.0
 pyautogui
 pillow
 tkcap
 pydicom
 img2pdf
-opencv_python
+opencv-python
+numpy
 matplotlib
 pandas
-tensorflow
 python-xlib
