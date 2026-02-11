@@ -293,6 +293,7 @@ if __name__ == "__main__":
 
 #Correcciones bloqueantes:
 # - Agregar el modelo y reestructuración de los archivos del proyecto
+# - En la función grad_cam, se corrige la forma de obtener la última capa convolucional del modelo, adaptando el código para ser compatible con TensorFlow 2.
 # - Agregar las siguiente importaciones:
 #    import tensorflow as tf
 #    import pydicom as dicom
@@ -301,5 +302,4 @@ if __name__ == "__main__":
 # - Se corrige la utilización de TensorFlow 1 por TensorFlow 2, adaptando el código para ser compatible con la versión más reciente.
 # - Multiples llamados al modelo para predecir y generar el heatmap, se optimiza llamando una sola vez al modelo y reutilizando la predicción para ambos procesos.
 # - En la función predict, se corrige la forma de obtener la predicción y probabilidad utilizando TensorFlow 2, adaptando el código para ser compatible con la versión más reciente.
-# - En la función grad_cam, se corrige la forma de obtener la última capa convolucional del modelo, adaptando el código para ser compatible con TensorFlow 2.
 # - En la función predict, se estaba calculando la predicción dos veces, una para obtener la clase y otra para obtener la probabilidad. Se optimiza llamando al modelo una sola vez y reutilizando la predicción para ambos procesos.
