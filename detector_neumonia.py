@@ -20,7 +20,8 @@ tf.compat.v1.disable_eager_execution()
 tf.compat.v1.experimental.output_all_intermediates(True)
 import cv2
 
-
+#  1. call function to pre-process image: it returns image in batch format
+#  This is a test for commit and push to GitHub made by Manuel Castillo Rosales.
 def grad_cam(array):
     img = preprocess(array)
     model = model_fun()
