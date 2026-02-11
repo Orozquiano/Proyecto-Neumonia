@@ -108,6 +108,7 @@ Nicolas Diaz Salazar - https://github.com/nicolasdiazsalazar
 
 
 ## ACTIVAR PROYECTO CON UV
+- Instalar python 3.11.9
 - uv venv --python 3.11 --clear
 - source .venv/Scripts/activate
 - uv pip install -r requirements.txt
