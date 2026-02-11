@@ -103,3 +103,14 @@ Grad-CAM realiza el cálculo del gradiente de la salida correspondiente a la cla
 
 Isabella Torres Revelo - https://github.com/isa-tr
 Nicolas Diaz Salazar - https://github.com/nicolasdiazsalazar
+
+
+
+
+## ACTIVAR PROYECTO CON UV
+- uv venv --python 3.11 --clear
+- source .venv/Scripts/activate
+- uv pip install -r requirements.txt
+- python detector_neumonia.py
+
+
