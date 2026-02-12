@@ -1,8 +1,8 @@
 import numpy as np
-from image.preprocessor import Preprocessor
-from model import gradcam
-from model.gradcam import GradCAM
-from model.model_loader import ModelLoader
+from image.preprocess_img import Preprocessor
+from model import grad_cam
+from model.grad_cam import GradCAM
+from model.load_model import ModelLoader
 
 class Predictor:
 
@@ -29,7 +29,7 @@ class Predictor:
         label = ["bacteriana", "normal", "viral"][prediction]
 
         # Grad-CAM usando la imagen procesada
-        heatmap = self.gradcam.generate(processed_img, original_image=array)
+        heatmap = self.gradcam.grad_cam(processed_img, original_image=array)
 
         return label, proba, heatmap
 

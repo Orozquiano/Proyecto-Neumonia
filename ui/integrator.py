@@ -7,10 +7,10 @@ import cv2
 import numpy as np
 import tkcap
 
-from model.model_loader import ModelLoader
-from model.predictor import Predictor
-from image.reader import ImageReader
-from image.preprocessor import Preprocessor
+from model.load_model import ModelLoader
+from model.predictor_img import Predictor
+from image.read_img import ImageReader
+from image.preprocess_img import Preprocessor
 from services.history_service import HistoryService
 from services.report_service import ReportService
 import pydicom as dicom

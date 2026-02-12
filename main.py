@@ -1,5 +1,5 @@
 from tkinter import Tk
-from ui.app import App
+from ui.integrator import App
 
 def main():
     my_app = App()

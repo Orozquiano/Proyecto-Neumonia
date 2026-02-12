@@ -22,10 +22,16 @@ class ImageReader:
 
     @staticmethod
     def read_image(path):
+        # Leer imagen usando OpenCV
         img = cv2.imread(path)
+
+        # Convertir arreglo a numpy array 
         img_array = np.asarray(img)
+
+        # Crear imagen para mostrar usando PIL
         img2show = Image.fromarray(img_array)
 
+        # Preprocesar imagen para el modelo: normalizar y convertir a uint8
         img2 = img_array.astype(float)
         img2 = (np.maximum(img2, 0) / img2.max()) * 255.0
         img2 = np.uint8(img2)
