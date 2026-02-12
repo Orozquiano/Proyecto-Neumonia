@@ -9,6 +9,7 @@ class GradCAM:
 
     def __init__(self, model):
         self.model = model
+        self.last_conv_layer_name = "conv10_thisone"
     
     # Obtenemos la última capa convolucional del modelo para usarla en Grad-CAM
     def get_last_conv_layer(self):
