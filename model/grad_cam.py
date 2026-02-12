@@ -24,7 +24,7 @@ class GradCAM:
                 for sublayer in reversed(layer.layers):
                     if isinstance(sublayer, tf.keras.layers.Conv2D):
                         return sublayer
-
+        return self.model.get_layer(self.last_conv_layer_name)
         raise ValueError("El modelo no contiene capas convolucionales")
 
 
