@@ -5,24 +5,24 @@
 Sistema de apoyo diagnóstico para detección de neumonía
 mediante redes neuronales convolucionales (CNN).
 
-Incluye:
-- Clasificación automática
-- Visualización Grad-CAM
-- Registro de resultados en CSV
-- Visualización de probabilidades por clase
+funcionalidades principales:
+- carga de imágenes médicas (jpg, png, dicom)
+- preprocesamiento estandarizado
+- predicción con modelo entrenado
+- generación de mapa de activación (grad-cam)
+- visualización de probabilidades por clase con barras y porcentaje
 
-NOTA:
-Este sistema es únicamente de apoyo y no sustituye
+nota:
+este sistema es únicamente de apoyo y no sustituye
 la evaluación médica profesional.
 """
 
 
-# Importaciones necesarias
-
+# importaciones necesarias
 
 from tkinter import *
 from tkinter import ttk, font, filedialog
-from tkinter.messagebox import askokcancel, showinfo, WARNING
+from tkinter.messagebox import askokcancel, showinfo, showwarning
 from PIL import ImageTk, Image
 import csv
 import os
@@ -32,31 +32,32 @@ import pydicom as dicom
 import cv2
 
 
+# configuración global del sistema
 
-# Configuración Global
+
+model_path = "model/conv_mlp_84.h5"
+labels = ["bacteriana", "normal", "viral"]
 
 
-MODEL_PATH = "model/conv_MLP_84.h5"
-
-# Etiquetas del modelo (orden debe coincidir con entrenamiento)
-LABELS = ["bacteriana", "normal", "viral"]
-
-# Cargar el modelo
+# carga del modelo
 
 
 try:
-    model = tf.keras.models.load_model(MODEL_PATH)
+    model = tf.keras.models.load_model(model_path)
 except Exception as e:
-    print("Error cargando el modelo:", e)
+    print("error cargando el modelo:", e)
     exit()
 
+
+# preparación para grad-cam
+
+
 def get_last_conv_layer(model):
-    """Obtiene automáticamente la última capa convolucional."""
+    """ obtiene la última capa convolucional del modelo """
     for layer in reversed(model.layers):
         if isinstance(layer, tf.keras.layers.Conv2D):
             return layer
-    raise ValueError("El modelo no contiene capas convolucionales")
-
+    raise ValueError("el modelo no contiene capas convolucionales")
 
 last_conv_layer = get_last_conv_layer(model)
 
@@ -66,16 +67,16 @@ grad_model = tf.keras.models.Model(
     outputs=[last_conv_layer.output, model.output]
 )
 
-# Pre-procesamiento de la imagen
-
+# función de preprocesamiento
 
 def preprocess(array):
     """
-    Preprocesamiento:
-    - Redimensionamiento
-    - Conversión a escala de grises
-    - Mejora de contraste (CLAHE)
-    - Normalización
+    preprocesa la imagen:
+    - resize 512x512
+    - escala de grises
+    - clahe
+    - normalización
+    - expandir dimensiones para batch
     """
 
     array = cv2.resize(array, (512, 512))
@@ -93,13 +94,13 @@ def preprocess(array):
     return array
 
 
-
-# Generación de heatmap (Grad-CAM)
-
+# grad-cam
 
 def grad_cam(array):
-    """Genera mapa de activación Grad-CAM."""
-
+    """
+    genera un heatmap sobre la imagen original
+    indicando las regiones más relevantes
+    """
     img = preprocess(array)
 
     with tf.GradientTape() as tape:
@@ -108,8 +109,7 @@ def grad_cam(array):
         loss = predictions[:, class_idx]
 
     grads = tape.gradient(loss, conv_outputs)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-
+    pooled_grads = tf.reduce_mean(grads, axis=(0,1,2))
     conv_outputs = conv_outputs[0]
     heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
     heatmap = tf.maximum(heatmap, 0)
@@ -119,7 +119,7 @@ def grad_cam(array):
         heatmap /= max_val
 
     heatmap = heatmap.numpy()
-    heatmap = cv2.resize(heatmap, (512, 512))
+    heatmap = cv2.resize(heatmap, (512,512))
     heatmap = np.uint8(255 * heatmap)
     heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
@@ -129,16 +129,15 @@ def grad_cam(array):
     return superimposed_img[:, :, ::-1]
 
 
-# Predicción
-
+# función de predicción
 
 def predict(array):
     """
-    Devuelve:
-    - Clase predicha
-    - Probabilidad máxima
-    - Heatmap
-    - Vector completo de probabilidades
+    devuelve:
+    - etiqueta predicha
+    - probabilidad máxima
+    - imagen con grad-cam
+    - vector completo de probabilidades
     """
 
     batch_array_img = preprocess(array)
@@ -150,12 +149,10 @@ def predict(array):
 
     heatmap = grad_cam(array)
 
-    return LABELS[prediction], proba, heatmap, preds
+    return labels[prediction], proba, heatmap, preds
 
 
-
-# Lee los archivos
-
+# lectura de archivos
 
 def read_dicom_file(path):
     img = dicom.dcmread(path)
@@ -164,12 +161,10 @@ def read_dicom_file(path):
     img2show = Image.fromarray(img_array)
 
     img2 = img_array.astype(float)
-    img2 = (np.maximum(img2, 0) / img2.max()) * 255.0
+    img2 = (np.maximum(img2,0)/img2.max())*255.0
     img2 = np.uint8(img2)
-
-    img_RGB = cv2.cvtColor(img2, cv2.COLOR_GRAY2RGB)
-    return img_RGB, img2show
-
+    img_rgb = cv2.cvtColor(img2, cv2.COLOR_GRAY2RGB)
+    return img_rgb, img2show
 
 def read_jpg_file(path):
     img = cv2.imread(path)
@@ -178,14 +173,13 @@ def read_jpg_file(path):
     img2show = Image.fromarray(img_array)
 
     img2 = img_array.astype(float)
-    img2 = (np.maximum(img2, 0) / img2.max()) * 255.0
+    img2 = (np.maximum(img2,0)/img2.max())*255.0
     img2 = np.uint8(img2)
 
     return img2, img2show
 
 
-
-# Interfaz de usuario
+# interfaz gráfica
 
 class App:
 
@@ -205,21 +199,36 @@ class App:
                   text="Este sistema es de apoyo diagnóstico y no sustituye evaluación médica.",
                   foreground="red").place(x=160, y=580)
 
-        # Área de probabilidades
-        ttk.Label(self.root, text="Probabilidades por clase:", font=fonti).place(x=560, y=350)
+        
+        # barras de probabilidad por clase con labels
+        
+        ttk.Label(self.root, text="probabilidades por clase:", font=fonti).place(x=560, y=350)
 
-        self.prob_bac = ttk.Progressbar(self.root, length=200)
-        self.prob_norm = ttk.Progressbar(self.root, length=200)
-        self.prob_vir = ttk.Progressbar(self.root, length=200)
+        # bacteriana
+        ttk.Label(self.root, text="bacteriana").place(x=560, y=380)
+        self.prob_bac = ttk.Progressbar(self.root, length=180, maximum=100)
+        self.prob_bac.place(x=660, y=380)
+        self.label_bac_value = ttk.Label(self.root, text="0.00%")
+        self.label_bac_value.place(x=850, y=380)
 
-        self.prob_bac.place(x=560, y=380)
-        self.prob_norm.place(x=560, y=410)
-        self.prob_vir.place(x=560, y=440)
+        # normal
+        ttk.Label(self.root, text="normal").place(x=560, y=410)
+        self.prob_norm = ttk.Progressbar(self.root, length=180, maximum=100)
+        self.prob_norm.place(x=660, y=410)
+        self.label_norm_value = ttk.Label(self.root, text="0.00%")
+        self.label_norm_value.place(x=850, y=410)
+
+        # viral
+        ttk.Label(self.root, text="viral").place(x=560, y=440)
+        self.prob_vir = ttk.Progressbar(self.root, length=180, maximum=100)
+        self.prob_vir.place(x=660, y=440)
+        self.label_vir_value = ttk.Label(self.root, text="0.00%")
+        self.label_vir_value.place(x=850, y=440)
 
         self.array = None
 
-        ttk.Button(self.root, text="Cargar Imagen", command=self.load_img_file).place(x=100, y=500)
-        ttk.Button(self.root, text="Predecir", command=self.run_model).place(x=250, y=500)
+        ttk.Button(self.root, text="cargar imagen", command=self.load_img_file).place(x=100, y=500)
+        ttk.Button(self.root, text="predecir", command=self.run_model).place(x=250, y=500)
 
         self.text_img1 = Text(self.root, width=31, height=15)
         self.text_img2 = Text(self.root, width=31, height=15)
@@ -232,8 +241,8 @@ class App:
 
     def load_img_file(self):
         filepath = filedialog.askopenfilename(
-            title="Select image",
-            filetypes=(("DICOM", "*.dcm"), ("JPEG", "*.jpg"), ("PNG", "*.png"))
+            title="select image",
+            filetypes=(("dicom", "*.dcm"), ("jpeg", "*.jpg"), ("png", "*.png"))
         )
 
         if filepath:
@@ -243,7 +252,7 @@ class App:
                 self.array, img2show = read_jpg_file(filepath)
 
             self.img1 = ImageTk.PhotoImage(
-                img2show.resize((250, 250), Image.Resampling.LANCZOS)
+                img2show.resize((250,250), Image.Resampling.LANCZOS)
             )
 
             self.text_img1.delete("1.0", END)
@@ -258,25 +267,29 @@ class App:
 
         label, proba, heatmap, preds = predict(self.array)
 
-        # Actualizar barras de probabilidad
+        # actualizar barras
         self.prob_bac["value"] = preds[0] * 100
         self.prob_norm["value"] = preds[1] * 100
         self.prob_vir["value"] = preds[2] * 100
 
+        # actualizar etiquetas numéricas
+        self.label_bac_value.config(text=f"{preds[0]*100:.2f}%")
+        self.label_norm_value.config(text=f"{preds[1]*100:.2f}%")
+        self.label_vir_value.config(text=f"{preds[2]*100:.2f}%")
+
         img2 = Image.fromarray(heatmap)
         self.img2 = ImageTk.PhotoImage(
-            img2.resize((250, 250), Image.Resampling.LANCZOS)
+            img2.resize((250,250), Image.Resampling.LANCZOS)
         )
-
         self.text_img2.delete("1.0", END)
         self.text_img2.image_create(END, image=self.img2)
 
-        showinfo("Resultado", f"Predicción: {label}\nProbabilidad: {proba:.2f}%")
+        showinfo("resultado", f"predicción: {label}\nprobabilidad: {proba:.2f}%")
 
 
 
 
-# Corre el codigo
+# Correr el codigo
 
 
 def main():
