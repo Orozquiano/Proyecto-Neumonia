@@ -1,5 +1,9 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import numpy as np
-from src.image.preprocess_img import Preprocessor
+from image.preprocess_img import Preprocessor
 
 def test_preprocess_output_shape():
 
