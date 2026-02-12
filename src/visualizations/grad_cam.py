@@ -1,68 +1,73 @@
 import numpy as np
 import cv2
 import tensorflow as tf
-import tensorflow.keras.backend as K
-
-# Importamos tu módulo anterior para asegurar que la imagen entre igual
 from src.data.preprocess_img import preprocess
-
-# NECESARIO: Desactiva la ejecución eager para que K.gradients funcione
-tf.compat.v1.disable_eager_execution()
 
 def generate_grad_cam(array, model):
     """
-    Genera un mapa de calor (Heatmap) que indica qué partes de la imagen
-    fueron determinantes para la clasificación.
+    Genera mapa de calor (Grad-CAM).
+    Versión blindada: Convierte listas a tensores automáticamente.
     """
-    # 1. Preprocesar la imagen
+    # 1. Preprocesar
     img_tensor = preprocess(array)
     
-    # 2. Predicción inicial
-    preds = model.predict(img_tensor)
-    argmax = np.argmax(preds[0])
-    output = model.output[:, argmax]
-    
-    # 3. Obtener la última capa convolucional
-    # NOTA: "conv10_thisone" es el nombre específico que tus compañeros pusieron en su modelo
+    # 2. Buscar capa convolucional
     try:
         last_conv_layer = model.get_layer("conv10_thisone")
     except ValueError:
-        print("Error: No se encontró la capa 'conv10_thisone'. Verifica el nombre en el modelo.")
-        return array # Retorna original si falla
+        print("⚠️ Error: No se encontró la capa 'conv10_thisone'.")
+        return array 
 
-    # 4. Calcular gradientes
-    grads = K.gradients(output, last_conv_layer.output)[0]
-    pooled_grads = K.mean(grads, axis=(0, 1, 2))
-    
-    # 5. Función de iteración (Backprop)
-    iterate = K.function([model.input], [pooled_grads, last_conv_layer.output[0]])
-    pooled_grads_value, conv_layer_output_value = iterate([img_tensor])
-    
-    # 6. Ponderación de filtros
-    for i in range(pooled_grads_value.shape[0]):
-        conv_layer_output_value[:, :, i] *= pooled_grads_value[i]
+    # 3. Modelo de gradientes
+    grad_model = tf.keras.models.Model(
+        inputs=model.inputs,
+        outputs=[last_conv_layer.output, model.output]
+    )
+
+    # 4. GradientTape
+    with tf.GradientTape() as tape:
+        inputs = tf.cast(img_tensor, tf.float32)
+        outputs_list = grad_model(inputs)
         
-    # 7. Generar Heatmap promedio
-    heatmap = np.mean(conv_layer_output_value, axis=-1)
-    heatmap = np.maximum(heatmap, 0)  # ReLU
-    heatmap /= np.max(heatmap) if np.max(heatmap) != 0 else 1 # Normalizar
-    
-    # 8. Superponer a la imagen original
-    # Redimensionar el heatmap al tamaño de la imagen original (o 512x512)
+        # --- FIX DE INGENIERÍA: EXTRACCIÓN SEGURA ---
+        # Keras a veces devuelve [tensor, tensor] o [tensor, [tensor]]
+        # Aquí desempacamos con cuidado.
+        conv_outputs = outputs_list[0]
+        predictions = outputs_list[1]
+
+        # Si 'predictions' resulta ser una lista (el error que te salía), extraemos el tensor
+        if isinstance(predictions, list) or isinstance(predictions, tuple):
+            predictions = predictions[0]
+
+        # Aseguramos que sea un Tensor de TensorFlow
+        predictions = tf.convert_to_tensor(predictions)
+        conv_outputs = tf.convert_to_tensor(conv_outputs)
+        # --------------------------------------------
+
+        # Ahora sí podemos hacer slicing sin error
+        pred_index = tf.argmax(predictions[0])
+        class_channel = predictions[:, pred_index]
+
+    # 5. Calcular Gradientes
+    grads = tape.gradient(class_channel, conv_outputs)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    # 6. Generar Heatmap
+    conv_outputs = conv_outputs[0]
+    heatmap = conv_outputs @ pooled_grads[..., tf.newaxis]
+    heatmap = tf.squeeze(heatmap)
+    heatmap = tf.maximum(heatmap, 0) / tf.math.reduce_max(heatmap)
+    heatmap = heatmap.numpy()
+
+    # 7. Superponer
     heatmap = cv2.resize(heatmap, (array.shape[1], array.shape[0]))
-    
-    # Convertir a RGB (mapa de calor Jet)
     heatmap = np.uint8(255 * heatmap)
     heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
     
-    # Mezclar (60% original, 40% calor)
-    # Aseguramos que 'array' sea uint8 y tenga 3 canales
     if len(array.shape) == 2:
         array = cv2.cvtColor(array, cv2.COLOR_GRAY2BGR)
         
     img_bgr = cv2.resize(array, (heatmap.shape[1], heatmap.shape[0]))
-    
     superimposed_img = cv2.addWeighted(img_bgr, 0.6, heatmap, 0.4, 0)
     
-    # Convertir de BGR a RGB para Tkinter
     return cv2.cvtColor(superimposed_img, cv2.COLOR_BGR2RGB)
