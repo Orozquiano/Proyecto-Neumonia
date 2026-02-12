@@ -9,7 +9,7 @@ class GradCAM:
 
     def __init__(self, model):
         self.model = model
-        self.last_conv_layer_name = "conv10_thisone"
+        
     
     # Obtenemos la última capa convolucional del modelo para usarla en Grad-CAM
     def get_last_conv_layer(self):
@@ -24,7 +24,7 @@ class GradCAM:
                 for sublayer in reversed(layer.layers):
                     if isinstance(sublayer, tf.keras.layers.Conv2D):
                         return sublayer
-        return self.model.get_layer(self.last_conv_layer_name)
+
         raise ValueError("El modelo no contiene capas convolucionales")
 
 
