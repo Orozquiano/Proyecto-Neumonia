@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -12,49 +13,75 @@ import pyautogui
 import tkcap
 import img2pdf
 import numpy as np
+import tensorflow as tf
+import pydicom as dicom
 import time
-tf.compat.v1.disable_eager_execution()
-tf.compat.v1.experimental.output_all_intermediates(True)
 import cv2
 
+# Se carga el modelo única vez para optimizar el proceso de predicción y generación del heatmap.
+model = tf.keras.models.load_model("model/conv_MLP_84.h5")
 
+# Obtenemos la última capa convolucional del modelo para usarla en Grad-CAM
+def get_last_conv_layer(model):
+    for layer in reversed(model.layers):
+        if isinstance(layer, tf.keras.layers.Conv2D):
+            return layer
+    raise ValueError("El modelo no contiene capas convolucionales")
+
+#  1. call function to pre-process image: it returns image in batch format
+#  This is a test for commit and push to GitHub made by Manuel Castillo Rosales.
 def grad_cam(array):
     img = preprocess(array)
-    model = model_fun()
-    preds = model.predict(img)
-    argmax = np.argmax(preds[0])
-    output = model.output[:, argmax]
-    last_conv_layer = model.get_layer("conv10_thisone")
-    grads = K.gradients(output, last_conv_layer.output)[0]
-    pooled_grads = K.mean(grads, axis=(0, 1, 2))
-    iterate = K.function([model.input], [pooled_grads, last_conv_layer.output[0]])
-    pooled_grads_value, conv_layer_output_value = iterate(img)
-    for filters in range(64):
-        conv_layer_output_value[:, :, filters] *= pooled_grads_value[filters]
-    # creating the heatmap
-    heatmap = np.mean(conv_layer_output_value, axis=-1)
-    heatmap = np.maximum(heatmap, 0)  # ReLU
-    heatmap /= np.max(heatmap)  # normalize
-    heatmap = cv2.resize(heatmap, (img.shape[1], img.shape[2]))
+
+    last_conv_layer = get_last_conv_layer(model)
+
+    grad_model = tf.keras.models.Model(
+        [model.inputs],
+        [last_conv_layer.output, model.output]
+    )
+
+    with tf.GradientTape() as tape:
+        conv_outputs, predictions = grad_model(img)
+        class_idx = tf.argmax(predictions[0])
+        loss = predictions[:, class_idx]
+
+    grads = tape.gradient(loss, conv_outputs)
+    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
+
+    conv_outputs = conv_outputs[0]
+    heatmap = tf.reduce_sum(conv_outputs * pooled_grads, axis=-1)
+
+    heatmap = tf.maximum(heatmap, 0)
+
+    max_val = tf.reduce_max(heatmap)
+
+    # Valida que el valor máximo no sea cero para evitar división por cero
+    heatmap = tf.cond(
+        max_val > 0,
+        lambda: heatmap / max_val,
+        lambda: heatmap
+    )
+
+    heatmap = heatmap.numpy()
+    heatmap = cv2.resize(heatmap, (512, 512))
     heatmap = np.uint8(255 * heatmap)
     heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+
     img2 = cv2.resize(array, (512, 512))
-    hif = 0.8
-    transparency = heatmap * hif
-    transparency = transparency.astype(np.uint8)
-    superimposed_img = cv2.add(transparency, img2)
-    superimposed_img = superimposed_img.astype(np.uint8)
+    superimposed_img = cv2.addWeighted(img2, 0.6, heatmap, 0.4, 0)
+
     return superimposed_img[:, :, ::-1]
+
 
 
 def predict(array):
     #   1. call function to pre-process image: it returns image in batch format
     batch_array_img = preprocess(array)
     #   2. call function to load model and predict: it returns predicted class and probability
-    model = model_fun()
-    # model_cnn = tf.keras.models.load_model('conv_MLP_84.h5')
-    prediction = np.argmax(model.predict(batch_array_img))
-    proba = np.max(model.predict(batch_array_img)) * 100
+    preds = model(batch_array_img, training=False).numpy()
+    prediction = np.argmax(preds)
+    proba = np.max(preds) * 100
+
     label = ""
     if prediction == 0:
         label = "bacteriana"
@@ -68,7 +95,7 @@ def predict(array):
 
 
 def read_dicom_file(path):
-    img = dicom.read_file(path)
+    img = dicom.dcmread(path) #Se cambia pydicom.read_file por dicom.dcmread (Mas actualizado)
     img_array = img.pixel_array
     img2show = Image.fromarray(img_array)
     img2 = img_array.astype(float)
@@ -87,7 +114,6 @@ def read_jpg_file(path):
     img2 = np.uint8(img2)
     return img2, img2show
 
-
 def preprocess(array):
     array = cv2.resize(array, (512, 512))
     array = cv2.cvtColor(array, cv2.COLOR_BGR2GRAY)
@@ -97,7 +123,6 @@ def preprocess(array):
     array = np.expand_dims(array, axis=-1)
     array = np.expand_dims(array, axis=0)
     return array
-
 
 class App:
     def __init__(self):
@@ -184,26 +209,36 @@ class App:
     #   METHODS
     def load_img_file(self):
         filepath = filedialog.askopenfilename(
-            initialdir="/",
             title="Select image",
             filetypes=(
                 ("DICOM", "*.dcm"),
                 ("JPEG", "*.jpeg"),
-                ("jpg files", "*.jpg"),
-                ("png files", "*.png"),
+                ("JPG", "*.jpg"),
+                ("PNG", "*.png"),
             ),
         )
+
         if filepath:
-            self.array, img2show = read_dicom_file(filepath)
-            self.img1 = img2show.resize((250, 250), Image.ANTIALIAS)
+        # Detectar tipo de archivo
+            if filepath.lower().endswith(".dcm"):
+                self.array, img2show = read_dicom_file(filepath)
+            else:
+                self.array, img2show = read_jpg_file(filepath)
+
+            # Redimensionar imagen
+            self.img1 = img2show.resize((250, 250), Image.Resampling.LANCZOS) # Se canbia por que en versiones nuevas ya esta deprecado
             self.img1 = ImageTk.PhotoImage(self.img1)
+
+            self.text_img1.delete("1.0", END)
             self.text_img1.image_create(END, image=self.img1)
+
             self.button1["state"] = "enabled"
+
 
     def run_model(self):
         self.label, self.proba, self.heatmap = predict(self.array)
         self.img2 = Image.fromarray(self.heatmap)
-        self.img2 = self.img2.resize((250, 250), Image.ANTIALIAS)
+        self.img2 = self.img2.resize((250, 250), Image.Resampling.LANCZOS) # Se canbia por que en versiones nuevas ya esta deprecado
         self.img2 = ImageTk.PhotoImage(self.img2)
         print("OK")
         self.text_img2.image_create(END, image=self.img2)
@@ -231,15 +266,20 @@ class App:
 
     def delete(self):
         answer = askokcancel(
-            title="Confirmación", message="Se borrarán todos los datos.", icon=WARNING
-        )
+                title="Confirmación",
+                message="Se borrarán todos los datos.",
+                icon=WARNING
+            )
+
         if answer:
-            self.text1.delete(0, "end")
-            self.text2.delete(1.0, "end")
-            self.text3.delete(1.0, "end")
-            self.text_img1.delete(self.img1, "end")
-            self.text_img2.delete(self.img2, "end")
+            self.text1.delete(0, END) # Se cambia por error TypeError: bad text index
+            self.text2.delete("1.0", END)
+            self.text3.delete("1.0", END)
+            self.text_img1.delete("1.0", END)
+            self.text_img2.delete("1.0", END)
+
             showinfo(title="Borrar", message="Los datos se borraron con éxito")
+
 
 
 def main():
@@ -249,3 +289,18 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+#Correcciones bloqueantes:
+# - Agregar el modelo y reestructuración de los archivos del proyecto
+# - En la función grad_cam, se corrige la forma de obtener la última capa convolucional del modelo, adaptando el código para ser compatible con TensorFlow 2.
+# - Agregar las siguiente importaciones:
+#    import tensorflow as tf
+#    import pydicom as dicom
+
+## Correcciones de rendimiento y compatibilidad:
+# - Se corrige la utilización de TensorFlow 1 por TensorFlow 2, adaptando el código para ser compatible con la versión más reciente.
+# - Multiples llamados al modelo para predecir y generar el heatmap, se optimiza llamando una sola vez al modelo y reutilizando la predicción para ambos procesos.
+# - En la función predict, se corrige la forma de obtener la predicción y probabilidad utilizando TensorFlow 2, adaptando el código para ser compatible con la versión más reciente.
+# - En la función predict, se estaba calculando la predicción dos veces, una para obtener la clase y otra para obtener la probabilidad. Se optimiza llamando al modelo una sola vez y reutilizando la predicción para ambos procesos.
