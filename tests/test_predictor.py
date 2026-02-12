@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import numpy as np
 try:
-    from src.model.predictor_img import Predictor
+    from model.predictor_img import Predictor
 except ImportError:
     # Intento alternativo si se ejecuta desde dentro de la carpeta tests o si la estructura varía
     from model.predictor_img import Predictor
