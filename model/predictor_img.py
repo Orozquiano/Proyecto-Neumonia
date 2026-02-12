@@ -23,7 +23,7 @@ class Predictor:
         processed_img = self.preprocessor.preprocess(array)
 
         # Predicción
-        preds = self.model(processed_img, training=False).numpy()
+        preds = self.model(processed_img, training=False)
         prediction = np.argmax(preds)
         proba = np.max(preds) * 100
         label = ["bacteriana", "normal", "viral"][prediction]

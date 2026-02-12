@@ -12,11 +12,20 @@ class GradCAM:
     
     # Obtenemos la última capa convolucional del modelo para usarla en Grad-CAM
     def get_last_conv_layer(self):
+    
+        # Buscar en modelo principal
         for layer in reversed(self.model.layers):
             if isinstance(layer, tf.keras.layers.Conv2D):
                 return layer
+
+            # Buscar dentro si es modelo anidado
+            if hasattr(layer, "layers"):
+                for sublayer in reversed(layer.layers):
+                    if isinstance(sublayer, tf.keras.layers.Conv2D):
+                        return sublayer
+
         raise ValueError("El modelo no contiene capas convolucionales")
-    
+
 
     def grad_cam(self, img_array, original_image):
     
