@@ -2,6 +2,9 @@ import sys
 import os
 import numpy as np
 
+# Añadir el directorio raíz al sys.path para que se encuentre el módulo 'model'
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from model.predictor_img import Predictor
 
 
