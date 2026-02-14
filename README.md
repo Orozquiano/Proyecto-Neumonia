@@ -10,8 +10,8 @@ Luis David Hurtado Caicedo - 22507571
 ## ACTIVAR PROYECTO CON UV
 - Instalar python 3.11.9
 - uv venv --python 3.11 --clear
-- .source .venv/Scripts/activate
+- . .venv/Scripts/activate
 - uv pip install -r requirements.txt
-- python detector_neumonia.py
+- python main.py
 
 
