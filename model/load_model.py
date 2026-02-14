@@ -2,7 +2,8 @@ import tensorflow as tf
 
 class ModelLoader:
     _model = None
-
+    # Método de clase para obtener el modelo cargado
+    # parámetro opcional para forzar recarga del modelo
     @classmethod
     def get_model(cls):
         # Cargar el modelo solo una vez

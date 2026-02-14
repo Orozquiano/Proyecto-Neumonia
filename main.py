@@ -1,4 +1,3 @@
-from tkinter import Tk
 from ui.integrator import App
 
 def main():

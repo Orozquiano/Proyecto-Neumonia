@@ -4,7 +4,7 @@ import pydicom as dicom
 from PIL import Image
 
 class ImageReader:
-
+    # Método para leer una imagen DICOM y preprocesarla
     @staticmethod
     def read_dicom(path):
         img = dicom.dcmread(path)
@@ -19,7 +19,8 @@ class ImageReader:
         img_RGB = cv2.cvtColor(img2, cv2.COLOR_GRAY2RGB)
 
         return img_RGB, img2show
-
+    
+    # Método para leer una imagen común (jpg, png) y preprocesarla
     @staticmethod
     def read_image(path):
         # Leer imagen usando OpenCV

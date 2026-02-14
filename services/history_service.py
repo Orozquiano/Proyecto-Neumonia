@@ -3,6 +3,7 @@ from tkinter.messagebox import showinfo
 
 class HistoryService:
 
+    # Método estático para guardar el historial de predicciones en un archivo CSV
     @staticmethod
     def save(patient_id, label, proba):
         with open("historial.csv", "a") as csvfile:

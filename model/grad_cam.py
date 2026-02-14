@@ -27,7 +27,7 @@ class GradCAM:
 
         raise ValueError("El modelo no contiene capas convolucionales")
 
-
+    # Método para generar el mapa de calor Grad-CAM dado una imagen preprocesada y la imagen original
     def grad_cam(self, img_array, original_image):
     
         # Obtener la última capa convolucional

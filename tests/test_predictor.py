@@ -1,14 +1,9 @@
 import sys
 import os
-# Asegurarse de que la raíz del proyecto esté en el path para que 'src' sea reconocible
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import numpy as np
-try:
-    from model.predictor_img import Predictor
-except ImportError:
-    # Intento alternativo si se ejecuta desde dentro de la carpeta tests o si la estructura varía
-    from model.predictor_img import Predictor
+
+from model.predictor_img import Predictor
+
 
 
 class DummyLayer:

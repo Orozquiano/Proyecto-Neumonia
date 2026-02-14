@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 class Preprocessor:
-    
+    # Método para preprocesar una imagen dada como un array numpy
     def preprocess(self,array):
         # Redimensionar a 512x512, aplicar CLAHE, normalizar y expandir dimensiones
         self.array = cv2.resize(array, (512, 512))

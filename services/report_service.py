@@ -6,7 +6,7 @@ class ReportService:
 
     def __init__(self):
         self.reportID = 0
-
+    # Método para generar un PDF a partir de una captura de pantalla del root dado
     def generate(self, root):
         cap = tkcap.CAP(root)
 

@@ -11,7 +11,7 @@ class Predictor:
         1: "normal",
         2: "viral"
     }
-
+    # El constructor acepta un modelo pre-cargado y una bandera para usar Grad-CAM
     def __init__(self, model, use_gradcam=True):
         self.model = model
         self.preprocessor = Preprocessor()
@@ -20,6 +20,7 @@ class Predictor:
         if use_gradcam:
             self.gradcam = GradCAM(model)
 
+    # Método para predecir la clase de una imagen dada como un array numpy
     def predict(self, array):
         
         # Preprocesar una sola vez
