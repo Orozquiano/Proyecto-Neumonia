@@ -1,9 +1,37 @@
-FROM python:latest
+# Imagen base con Python 3.12
+FROM python:3.12-slim
 
-RUN apt-get update -y && \
-    apt-get install python3-opencv -y 
+# Evita archivos .pyc y habilita logs inmediatos
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-WORKDIR /home/src
+# Instalar curl y dependencias básicas
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY . ./
-RUN pip install -r requirements.txt
+# Instalar uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Agregar uv al PATH
+ENV PATH="/root/.local/bin:$PATH"
+
+# Crear directorio de trabajo
+WORKDIR /app
+
+# Copiar archivos del proyecto
+COPY pyproject.toml uv.lock ./
+
+# Crear entorno virtual e instalar dependencias
+RUN uv sync --frozen
+
+# Copiar el resto del código
+COPY . .
+
+# Activar entorno virtual automáticamente
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Comando por defecto
+CMD ["python", "main.py"]
+
